@@ -5,10 +5,10 @@ import { useFloodStore, Station } from '../store/useFloodStore';
 import { MapPin } from 'lucide-react';
 import L from 'leaflet';
 
-// Custom icon using Lucide React's MapPin as SVG
-const customIcon = new L.DivIcon({
-  html: `<div style="color: #2563eb; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+// Dynamic custom icon generator
+const getCustomIcon = (isDanger?: boolean) => new L.DivIcon({
+  html: `<div style="color: ${isDanger ? '#dc2626' : '#2563eb'}; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="${isDanger ? '#fee2e2' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
             <circle cx="12" cy="10" r="3"></circle>
           </svg>
@@ -55,7 +55,7 @@ export default function FloodMap() {
           <Marker
             key={station.id}
             position={[station.latitude, station.longitude]}
-            icon={customIcon}
+            icon={getCustomIcon(station.isDanger)}
             eventHandlers={{
               click: () => selectStation(station),
             }}
@@ -68,6 +68,11 @@ export default function FloodMap() {
                   <p className="text-sm text-red-600 font-medium m-0 mt-1">
                     Kritik Eşik: {station.dangerThreshold} m³/s
                   </p>
+                  {station.currentDischarge !== undefined && (
+                    <p className={`text-sm font-medium m-0 mt-1 ${station.isDanger ? 'text-red-600' : 'text-green-600'}`}>
+                      Güncel: {station.currentDischarge} m³/s
+                    </p>
+                  )}
                 </div>
               </Popup>
             )}

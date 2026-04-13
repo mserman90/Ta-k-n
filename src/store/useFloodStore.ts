@@ -8,6 +8,8 @@ export interface Station {
   longitude: number;
   basin: string;
   dangerThreshold: number;
+  currentDischarge?: number;
+  isDanger?: boolean;
 }
 
 export interface Measurement {
@@ -61,8 +63,37 @@ export const useFloodStore = create<FloodState>((set, get) => ({
   lastUpdated: null,
 
   fetchStations: async () => {
-    // With Open-Meteo we don't fetch stations, we use predefined coordinates
-    set({ stations: REGIONAL_STATIONS, isLoading: false, error: null });
+    set({ isLoading: true, error: null });
+    
+    // Set initial stations immediately so map can render
+    set({ stations: REGIONAL_STATIONS });
+
+    try {
+      // Fetch current discharge for all stations in parallel to determine danger status
+      const updatedStations = await Promise.all(REGIONAL_STATIONS.map(async (station) => {
+        try {
+          const data = await floodApi.getCurrentDischarge(station.latitude, station.longitude);
+          if (data && data.daily && data.daily.river_discharge) {
+            const discharges = data.daily.river_discharge;
+            // Get the most recent non-null value
+            const currentDischarge = discharges[discharges.length - 1] || 0;
+            return {
+              ...station,
+              currentDischarge: Number(currentDischarge.toFixed(2)),
+              isDanger: currentDischarge >= station.dangerThreshold
+            };
+          }
+        } catch (err) {
+          console.error(`Failed to fetch current status for ${station.name}`, err);
+        }
+        return station;
+      }));
+
+      set({ stations: updatedStations, isLoading: false });
+    } catch (err) {
+      console.error("Failed to update station statuses:", err);
+      set({ isLoading: false });
+    }
   },
 
   selectStation: async (station: Station) => {

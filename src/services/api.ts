@@ -86,6 +86,13 @@ export const floodApi = {
     const url = `${BASE_URL}?latitude=${lat}&longitude=${lon}&daily=river_discharge&past_days=90&forecast_days=14`;
     const response = await fetchWithBackoff(url);
     return response.json();
+  },
+  
+  // Fetch only recent data to quickly determine current status
+  getCurrentDischarge: async (lat: number, lon: number) => {
+    const url = `${BASE_URL}?latitude=${lat}&longitude=${lon}&daily=river_discharge&past_days=2&forecast_days=0`;
+    const response = await fetchWithBackoff(url);
+    return response.json();
   }
 };
 

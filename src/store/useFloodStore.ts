@@ -28,16 +28,28 @@ interface FloodState {
   selectStation: (station: Station) => Promise<void>;
 }
 
-// Predefined major river stations in Turkey for Open-Meteo API
-const TURKEY_STATIONS: Station[] = [
+// Predefined major river stations in Turkey and connected transboundary rivers for Open-Meteo API
+const REGIONAL_STATIONS: Station[] = [
+  // Turkey Internal
   { id: '1', name: 'Kızılırmak (Bafra)', latitude: 41.56, longitude: 35.90, basin: 'Kızılırmak Havzası', dangerThreshold: 150 },
   { id: '2', name: 'Sakarya (Adapazarı)', latitude: 40.78, longitude: 30.40, basin: 'Sakarya Havzası', dangerThreshold: 120 },
-  { id: '3', name: 'Fırat (Birecik)', latitude: 37.02, longitude: 37.98, basin: 'Fırat-Dicle Havzası', dangerThreshold: 400 },
-  { id: '4', name: 'Dicle (Diyarbakır)', latitude: 37.91, longitude: 40.23, basin: 'Fırat-Dicle Havzası', dangerThreshold: 300 },
-  { id: '5', name: 'Meriç (Edirne)', latitude: 41.67, longitude: 26.56, basin: 'Meriç-Ergene Havzası', dangerThreshold: 250 },
   { id: '6', name: 'Yeşilırmak (Çarşamba)', latitude: 41.20, longitude: 36.62, basin: 'Yeşilırmak Havzası', dangerThreshold: 130 },
   { id: '7', name: 'Seyhan (Adana)', latitude: 36.98, longitude: 35.32, basin: 'Seyhan Havzası', dangerThreshold: 200 },
   { id: '8', name: 'Büyük Menderes (Aydın)', latitude: 37.75, longitude: 27.40, basin: 'Büyük Menderes Havzası', dangerThreshold: 90 },
+  
+  // Transboundary (Turkey)
+  { id: '3', name: 'Fırat (Birecik, TR)', latitude: 37.02, longitude: 37.98, basin: 'Fırat-Dicle Havzası', dangerThreshold: 400 },
+  { id: '4', name: 'Dicle (Diyarbakır, TR)', latitude: 37.91, longitude: 40.23, basin: 'Fırat-Dicle Havzası', dangerThreshold: 300 },
+  { id: '5', name: 'Meriç (Edirne, TR)', latitude: 41.67, longitude: 26.56, basin: 'Meriç-Ergene Havzası', dangerThreshold: 250 },
+  { id: '9', name: 'Asi (Hatay, TR)', latitude: 36.20, longitude: 36.16, basin: 'Asi Havzası', dangerThreshold: 100 },
+
+  // Transboundary (Neighboring Countries)
+  { id: '10', name: 'Maritsa/Meriç (Svilengrad, BG)', latitude: 41.76, longitude: 26.20, basin: 'Meriç-Ergene Havzası', dangerThreshold: 200 },
+  { id: '11', name: 'Orontes/Asi (Homs, SY)', latitude: 34.73, longitude: 36.71, basin: 'Asi Havzası', dangerThreshold: 80 },
+  { id: '12', name: 'Euphrates/Fırat (Raqqa, SY)', latitude: 35.94, longitude: 39.01, basin: 'Fırat-Dicle Havzası', dangerThreshold: 500 },
+  { id: '13', name: 'Tigris/Dicle (Mosul, IQ)', latitude: 36.34, longitude: 43.13, basin: 'Fırat-Dicle Havzası', dangerThreshold: 400 },
+  { id: '14', name: 'Kura (Tbilisi, GE)', latitude: 41.71, longitude: 44.82, basin: 'Kura-Aras Havzası', dangerThreshold: 300 },
+  { id: '15', name: 'Aras (Yerevan Sınırı, AM)', latitude: 40.05, longitude: 44.44, basin: 'Kura-Aras Havzası', dangerThreshold: 150 },
 ];
 
 export const useFloodStore = create<FloodState>((set, get) => ({
@@ -50,7 +62,7 @@ export const useFloodStore = create<FloodState>((set, get) => ({
 
   fetchStations: async () => {
     // With Open-Meteo we don't fetch stations, we use predefined coordinates
-    set({ stations: TURKEY_STATIONS, isLoading: false, error: null });
+    set({ stations: REGIONAL_STATIONS, isLoading: false, error: null });
   },
 
   selectStation: async (station: Station) => {

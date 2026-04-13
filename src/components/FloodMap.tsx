@@ -34,13 +34,13 @@ function MapUpdater({ selectedStation }: { selectedStation: Station | null }) {
 export default function FloodMap() {
   const { stations, selectedStation, selectStation } = useFloodStore();
 
-  const center: [number, number] = [38.9637, 35.2433]; // Turkey center
+  const center: [number, number] = [38.9637, 38.2433]; // Shifted slightly east to cover neighbors better
 
   return (
     <div className="w-full h-full relative z-0">
       <MapContainer
         center={center}
-        zoom={6}
+        zoom={5}
         style={{ width: '100%', height: '100%' }}
         zoomControl={true}
       >

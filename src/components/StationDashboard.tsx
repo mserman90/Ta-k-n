@@ -2,7 +2,7 @@ import { useFloodStore } from '../store/useFloodStore';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, Brush 
 } from 'recharts';
-import { AlertCircle, Info, Activity } from 'lucide-react';
+import { AlertCircle, Info, Activity, Droplets, Map as MapIcon, ShieldAlert } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function StationDashboard() {
@@ -19,38 +19,58 @@ export default function StationDashboard() {
 
   // Determine if current latest measurement exceeds danger threshold
   const latestMeasurement = stationData.length > 0 ? stationData[stationData.length - 1] : null;
-  const isDanger = latestMeasurement && latestMeasurement.discharge >= selectedStation.dangerThreshold;
+  const currentDischarge = selectedStation.currentDischarge ?? latestMeasurement?.discharge;
+  const isDanger = currentDischarge !== undefined && currentDischarge !== null && currentDischarge >= selectedStation.dangerThreshold;
 
   return (
     <div className="h-full flex flex-col bg-white p-6 overflow-y-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{selectedStation.name}</h2>
-        <div className="flex justify-between items-center mt-1">
-          <p className="text-gray-500">Havza: {selectedStation.basin}</p>
+        <div className="flex justify-between items-start">
+          <h2 className="text-2xl font-bold text-gray-900">{selectedStation.name}</h2>
           {lastUpdated && (
-            <p className="text-xs text-gray-400 font-medium">
-              Son Güncelleme: {new Date(lastUpdated).toLocaleString('tr-TR')}
+            <p className="text-xs text-gray-400 font-medium text-right mt-2">
+              Son Güncelleme:<br/>{new Date(lastUpdated).toLocaleString('tr-TR')}
             </p>
           )}
         </div>
       </div>
 
+      {/* Stats Grid */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 mb-1">
+            <MapIcon size={16} />
+            <span className="text-xs font-medium uppercase tracking-wider">Havza</span>
+          </div>
+          <div className="font-semibold text-gray-900 truncate" title={selectedStation.basin}>{selectedStation.basin}</div>
+        </div>
+        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 mb-1">
+            <ShieldAlert size={16} />
+            <span className="text-xs font-medium uppercase tracking-wider">Kritik Eşik</span>
+          </div>
+          <div className="font-semibold text-gray-900">{selectedStation.dangerThreshold} m³/s</div>
+        </div>
+        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+          <div className="flex items-center gap-2 text-gray-500 mb-1">
+            <Droplets size={16} />
+            <span className="text-xs font-medium uppercase tracking-wider">Güncel Debi</span>
+          </div>
+          <div className={cn("font-semibold", isDanger ? "text-red-600" : "text-gray-900")}>
+            {currentDischarge !== undefined && currentDischarge !== null ? `${currentDischarge} m³/s` : 'Bilinmiyor'}
+          </div>
+        </div>
+      </div>
+
       {/* Alert Panel */}
       <div className={cn(
-        "rounded-lg p-4 mb-6 flex items-start gap-3 border",
+        "rounded-lg p-4 mb-6 flex items-center gap-3 border",
         isDanger ? "bg-red-50 border-red-200 text-red-800" : "bg-green-50 border-green-200 text-green-800"
       )}>
-        {isDanger ? <AlertCircle className="shrink-0 mt-0.5" /> : <Activity className="shrink-0 mt-0.5" />}
-        <div>
-          <h3 className="font-semibold">
-            {isDanger ? "Kritik Eşik Aşıldı! (Taşkın Riski)" : "Normal Akış Seviyesi"}
-          </h3>
-          <p className="text-sm mt-1 opacity-90">
-            Güncel Debi: {latestMeasurement ? `${latestMeasurement.discharge} m³/s` : 'Bilinmiyor'} 
-            <br/>
-            Kritik Eşik: {selectedStation.dangerThreshold} m³/s
-          </p>
-        </div>
+        {isDanger ? <AlertCircle className="shrink-0" /> : <Activity className="shrink-0" />}
+        <h3 className="font-semibold">
+          {isDanger ? "Kritik Eşik Aşıldı! (Taşkın Riski)" : "Normal Akış Seviyesi"}
+        </h3>
       </div>
 
       {/* Chart Section */}

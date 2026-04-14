@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Taşkın İzleme Radarı",
+  "description": "Türkiye ve komşu ülkelerdeki nehirlerin güncel debi ölçümlerini, taşkın risklerini ve su altyapılarını harita üzerinden gerçek zamanlı takip etmenizi sağlayan erken uyarı sistemi.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

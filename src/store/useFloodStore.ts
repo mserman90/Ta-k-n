@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { floodApi } from '../services/api';
+import { floodApi, overpassApi, weatherApi, rainViewerApi } from '../services/api';
 
 export interface Station {
   id: string;
@@ -18,6 +18,28 @@ export interface Measurement {
   isForecast?: boolean;
 }
 
+export interface InfrastructureNode {
+  id: number;
+  lat: number;
+  lon: number;
+  tags: Record<string, string>;
+  type: string;
+}
+
+export interface WeatherData {
+  temperature: number;
+  precipitation: number;
+}
+
+export interface AlertNotification {
+  id: string;
+  stationId: string;
+  stationName: string;
+  discharge: number;
+  threshold: number;
+  timestamp: number;
+}
+
 interface FloodState {
   stations: Station[];
   selectedStation: Station | null;
@@ -26,8 +48,35 @@ interface FloodState {
   error: string | null;
   lastUpdated: string | null;
   
+  // Infrastructure Layer
+  showInfrastructure: boolean;
+  infrastructureData: InfrastructureNode[];
+  isLoadingInfrastructure: boolean;
+  
+  // Weather Layer
+  weatherMode: boolean;
+  weatherLocation: { lat: number, lon: number } | null;
+  weatherData: WeatherData | null;
+  isLoadingWeather: boolean;
+
+  // Alerts
+  alerts: AlertNotification[];
+
+  // Radar Layer
+  radarMode: boolean;
+  radarTileUrl: string | null;
+
   fetchStations: () => Promise<void>;
-  selectStation: (station: Station) => Promise<void>;
+  refreshData: () => Promise<void>;
+  selectStation: (station: Station, isRefresh?: boolean) => Promise<void>;
+  toggleInfrastructure: () => void;
+  fetchInfrastructure: (bbox: [number, number, number, number]) => Promise<void>;
+  toggleWeatherMode: () => void;
+  fetchWeather: (lat: number, lon: number) => Promise<void>;
+  clearWeather: () => void;
+  dismissAlert: (id: string) => void;
+  toggleRadarMode: () => void;
+  fetchRadarData: () => Promise<void>;
 }
 
 // Predefined major river stations in Turkey and connected transboundary rivers for Open-Meteo API
@@ -61,8 +110,118 @@ export const useFloodStore = create<FloodState>((set, get) => ({
   isLoading: false,
   error: null,
   lastUpdated: null,
+  
+  showInfrastructure: false,
+  infrastructureData: [],
+  isLoadingInfrastructure: false,
+
+  weatherMode: false,
+  weatherLocation: null,
+  weatherData: null,
+  isLoadingWeather: false,
+
+  alerts: [],
+
+  radarMode: false,
+  radarTileUrl: null,
+
+  toggleInfrastructure: () => set((state) => ({ showInfrastructure: !state.showInfrastructure })),
+
+  fetchInfrastructure: async (bbox: [number, number, number, number]) => {
+    const { showInfrastructure } = get();
+    if (!showInfrastructure) return;
+    
+    set({ isLoadingInfrastructure: true });
+    try {
+      const [s, w, n, e] = bbox;
+      const data = await overpassApi.getWaterInfrastructure(s, w, n, e);
+      
+      if (data && data.elements) {
+        const nodes: InfrastructureNode[] = data.elements.map((el: any) => ({
+          id: el.id,
+          lat: el.lat || el.center?.lat,
+          lon: el.lon || el.center?.lon,
+          tags: el.tags || {},
+          type: el.type
+        })).filter((n: InfrastructureNode) => n.lat && n.lon);
+        
+        set({ infrastructureData: nodes, isLoadingInfrastructure: false });
+      } else {
+        set({ isLoadingInfrastructure: false });
+      }
+    } catch (err) {
+      console.error("Failed to fetch infrastructure:", err);
+      set({ isLoadingInfrastructure: false });
+    }
+  },
+
+  toggleWeatherMode: () => set((state) => ({ 
+    weatherMode: !state.weatherMode,
+    weatherLocation: !state.weatherMode ? state.weatherLocation : null,
+    weatherData: !state.weatherMode ? state.weatherData : null
+  })),
+
+  clearWeather: () => set({ weatherLocation: null, weatherData: null }),
+
+  dismissAlert: (id: string) => set((state) => ({ alerts: state.alerts.filter(a => a.id !== id) })),
+
+  toggleRadarMode: () => {
+    const { radarMode, fetchRadarData } = get();
+    if (!radarMode) {
+      fetchRadarData();
+    }
+    set({ radarMode: !radarMode });
+  },
+
+  fetchRadarData: async () => {
+    try {
+      const data = await rainViewerApi.getRadarMetadata();
+      if (data && data.host && data.radar && data.radar.past && data.radar.past.length > 0) {
+        const latest = data.radar.past[data.radar.past.length - 1];
+        // format: {host}{path}/256/{z}/{x}/{y}/2/1_1.png
+        // 2 = standard color scheme, 1_1 = smooth with snow
+        const tileUrl = `${data.host}${latest.path}/256/{z}/{x}/{y}/2/1_1.png`;
+        set({ radarTileUrl: tileUrl });
+      }
+    } catch (err) {
+      console.error("Failed to fetch radar metadata:", err);
+    }
+  },
+
+  fetchWeather: async (lat: number, lon: number) => {
+    set({ isLoadingWeather: true, weatherLocation: { lat, lon }, weatherData: null });
+    try {
+      const data = await weatherApi.getCurrentWeather(lat, lon);
+      if (data && data.current) {
+        set({
+          weatherData: {
+            temperature: data.current.temperature_2m,
+            precipitation: data.current.precipitation
+          },
+          isLoadingWeather: false
+        });
+      } else {
+        set({ isLoadingWeather: false });
+      }
+    } catch (err) {
+      console.error("Failed to fetch weather:", err);
+      set({ isLoadingWeather: false });
+    }
+  },
+
+  refreshData: async () => {
+    const { fetchStations, selectedStation, selectStation, radarMode, fetchRadarData } = get();
+    await fetchStations();
+    if (selectedStation) {
+      await selectStation(selectedStation, true);
+    }
+    if (radarMode) {
+      await fetchRadarData();
+    }
+  },
 
   fetchStations: async () => {
+    const previousDangerIds = new Set(get().stations.filter(s => s.isDanger).map(s => s.id));
     set({ isLoading: true, error: null });
     
     // Set initial stations immediately so map can render
@@ -89,15 +248,35 @@ export const useFloodStore = create<FloodState>((set, get) => ({
         return station;
       }));
 
-      set({ stations: updatedStations, isLoading: false });
+      const newAlerts: AlertNotification[] = [];
+      updatedStations.forEach(station => {
+        if (station.isDanger && !previousDangerIds.has(station.id)) {
+          newAlerts.push({
+            id: Math.random().toString(36).substring(7),
+            stationId: station.id,
+            stationName: station.name,
+            discharge: station.currentDischarge!,
+            threshold: station.dangerThreshold,
+            timestamp: Date.now()
+          });
+        }
+      });
+
+      set((state) => ({ 
+        stations: updatedStations, 
+        isLoading: false,
+        alerts: [...state.alerts, ...newAlerts]
+      }));
     } catch (err) {
       console.error("Failed to update station statuses:", err);
       set({ isLoading: false });
     }
   },
 
-  selectStation: async (station: Station) => {
-    set({ selectedStation: station, isLoading: true, error: null, stationData: [], lastUpdated: null });
+  selectStation: async (station: Station, isRefresh = false) => {
+    if (!isRefresh) {
+      set({ selectedStation: station, isLoading: true, error: null, stationData: [], lastUpdated: null });
+    }
     try {
       const data = await floodApi.getStationData(station.latitude, station.longitude);
       

@@ -96,3 +96,43 @@ export const floodApi = {
   }
 };
 
+export const overpassApi = {
+  // Fetch water infrastructure (dams, water works) in a bounding box
+  getWaterInfrastructure: async (s: number, w: number, n: number, e: number) => {
+    const query = `
+      [out:json][timeout:25];
+      (
+        node["waterway"="dam"](${s},${w},${n},${e});
+        way["waterway"="dam"](${s},${w},${n},${e});
+        node["man_made"="water_works"](${s},${w},${n},${e});
+        way["man_made"="water_works"](${s},${w},${n},${e});
+      );
+      out center;
+    `;
+    
+    const response = await fetchWithBackoff('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: query
+    });
+    
+    return response.json();
+  }
+};
+
+export const weatherApi = {
+  // Fetch current weather conditions (temperature, precipitation)
+  getCurrentWeather: async (lat: number, lon: number) => {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation`;
+    const response = await fetchWithBackoff(url);
+    return response.json();
+  }
+};
+
+export const rainViewerApi = {
+  // Fetch metadata for the latest weather radar tiles
+  getRadarMetadata: async () => {
+    const response = await fetchWithBackoff('https://api.rainviewer.com/public/weather-maps.json');
+    return response.json();
+  }
+};
+
